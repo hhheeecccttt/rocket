@@ -42,6 +42,26 @@ def calculateAirDensity(height):
 def calculateGravity(height):
     return SEA_LEVEL_GRAVITY * (EARTH_RADIUS / (EARTH_RADIUS + height)) ** 2
 
+def calculateDerivatives(d, v, m, T):
+    rho = calculateAirDensity(d)
+    g = calculateGravity(d)
+
+    drag = np.sign(v) * 0.5 * rho * CD * A * v ** 2 
+    acc = (T - m * g - drag) / m
+
+    return v, acc
+
+def RK4(d, v, m, T):
+    k1v, k1a = calculateDerivatives(d, v, m, T)
+    k2v, k2a = calculateDerivatives(d + 0.5 * dt * k1v, v + 0.5 * dt * k1a, m, T)
+    k3v, k3a = calculateDerivatives(d + 0.5 * dt * k2v, v + 0.5 * dt * k2a, m, T)
+    k4v, k4a = calculateDerivatives(d + dt * k3v, v + dt * k3a, m, T)
+
+    pos = d + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
+    vel = v + (dt / 6) * (k1a + 2 * k2a + 2 * k3a + k4a)
+    
+    return pos, vel
+
 for i in range(steps - 1):
     time[i+1] = time[i] + dt
 
@@ -49,16 +69,11 @@ for i in range(steps - 1):
         thrust = mass_flow_rate * EXHAUST_VELOCITY
         mass[i + 1] = mass[i] - mass_flow_rate * dt
     else:
-        mass[i] = dry_mass
+        mass[i + 1] = dry_mass
         thrust = 0
 
-    rho = calculateAirDensity(position[i])
-    g = calculateGravity(position[i])
-
-    drag = np.sign(velocity[i]) * 0.5 * rho * CD * A * velocity[i] ** 2 
-    acceleration[i + 1] = (thrust - mass[i] * g - drag) / mass[i]
-    velocity[i+1] = velocity[i] + acceleration[i + 1] * dt
-    position[i+1] = position[i] + velocity[i] * dt + 0.5 * acceleration[i + 1] * dt**2
+    _, acceleration[i+1] = calculateDerivatives(position[i], velocity[i], mass[i],thrust)
+    position[i+1], velocity[i+1] = RK4(position[i], velocity[i], mass[i], thrust)
 
     if position[i+1] < 0:
         final_step = i
