@@ -11,7 +11,6 @@ H = 8500
 CD = 0.125
 A = 2.1
 EXHAUST_VELOCITY = 2000
-
 wet_mass = 13000
 dry_mass = 4000
 fuel_mass = wet_mass - dry_mass
@@ -22,25 +21,45 @@ mass_flow_rate = fuel_mass / burn_time
 
 rho = 1.225
 g = 9.8
+launch_angle = 80
+theta = np.radians(launch_angle)
 
-dt = 0.01
+dt = 0.1
 t_max = 3000
 steps = int(t_max / dt)
 final_step = steps - 1
 
 time = np.zeros(steps)
-velocity = np.zeros(steps)
-position = np.zeros(steps)
-acceleration = np.zeros(steps)
+position = np.zeros((steps, 2))
+velocity = np.zeros((steps, 2))
+acceleration = np.zeros((steps, 2))
 mass = np.zeros(steps)
 
 mass[0] = wet_mass
+velocity[0] = [0, 0]
+position[0] = [0, 0]
 
 def calculateAirDensity(height):
     return SEA_LEVEL_AIR_DENSITY * np.exp(-height / H)
 
-def calculateGravity(height):
-    return SEA_LEVEL_GRAVITY * (EARTH_RADIUS / (EARTH_RADIUS + height)) ** 2
+def calculateGravityVector(height):
+    h = height[1]
+    g = SEA_LEVEL_GRAVITY * (EARTH_RADIUS / (EARTH_RADIUS + h))**2
+    return np.array([0, -g])
+
+def calculateDragVector(v, d):
+    rho = calculateAirDensity(d[1])
+    speed = np.sqrt(v[0]*v[0] + v[1]*v[1])
+    if speed == 0:
+        return np.array([0.0, 0.0])
+    drag = 0.5 * rho * CD * A * speed**2
+    return -drag * (v / speed)
+
+def calculateAcceleration(d, v, m, T):
+    gravity = calculateGravityVector(d)
+    drag = calculateDragVector(v, d)
+    total_force = T + drag + gravity * m
+    return total_force / m
 
 for i in range(steps - 1):
     time[i+1] = time[i] + dt
@@ -49,19 +68,18 @@ for i in range(steps - 1):
         thrust = mass_flow_rate * EXHAUST_VELOCITY
         mass[i + 1] = mass[i] - mass_flow_rate * dt
     else:
-        mass[i] = dry_mass
+        mass[i + 1] = dry_mass
         thrust = 0
 
-    rho = calculateAirDensity(position[i])
-    g = calculateGravity(position[i])
+    thrust_vector = thrust * np.array([np.cos(theta), np.sin(theta)])
 
-    drag = np.sign(velocity[i]) * 0.5 * rho * CD * A * velocity[i] ** 2 
-    acceleration[i + 1] = (thrust - mass[i] * g - drag) / mass[i]
-    velocity[i+1] = velocity[i] + acceleration[i + 1] * dt
+    acceleration[i + 1] = calculateAcceleration(position[i], velocity[i], mass[i],thrust_vector)
+    velocity[i + 1] = velocity[i] + acceleration[i + 1] * dt
     position[i+1] = position[i] + velocity[i] * dt + 0.5 * acceleration[i + 1] * dt**2
 
-    if position[i+1] < 0:
-        final_step = i
+    if position[i+1,1] < 0:
+        position[i+1,1] = 0
+        final_step = i+1
         break
 
 time = time[1:final_step]
@@ -71,24 +89,17 @@ acceleration = acceleration[1:final_step]
 mass = mass[1:final_step]
 
 plt.figure(figsize=(10,6))
-plt.subplot(4,1,1)
-plt.plot(time, position)
+plt.subplot(2,1,1)
+plt.plot(position[:,0], position[:,1])
+plt.xlabel("Horizontal distance (m)")
 plt.ylabel("Altitude (m)")
+plt.title(f"Rocket Trajectory at {launch_angle}° Launch")
 
-plt.subplot(4,1,2)
-plt.plot(time, velocity)
-plt.ylabel("Velocity (m/s)")
+plt.subplot(2,1,2)
+plt.plot(time, velocity[:,1])
 plt.xlabel("Time (s)")
-
-plt.subplot(4,1,3)
-plt.plot(time, acceleration)
-plt.ylabel("Acceleration (m/s2)")
-plt.xlabel("Time (s)")
-
-plt.subplot(4,1,4)
-plt.plot(time, mass)
-plt.ylabel("Mass (kg)")
-plt.xlabel("Time (s)")
+plt.ylabel("Vertical velocity (m/s)")
+plt.title("Vertical Velocity vs Time")
 
 plt.tight_layout()
 plt.show()
