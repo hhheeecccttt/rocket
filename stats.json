@@ -1,0 +1,68 @@
+[
+  {
+    "name": "V-2",
+    "wetMass": 12500,
+    "dryMass": 4000,
+    "burnTime": 65,
+    "exhaustVelocity": 2200,
+    "dragCoefficient": 0.15,
+    "frontalArea": 1.13
+  },
+  {
+    "name": "Black Brant XII",
+    "wetMass": 12900,
+    "dryMass": 2800,
+    "burnTime": 90,
+    "exhaustVelocity": 2300,
+    "dragCoefficient": 0.13,
+    "frontalArea": 0.44
+  },
+  {
+    "name": "Pegasus XL",
+    "wetMass": 23130,
+    "dryMass": 4000,
+    "burnTime": 600,
+    "exhaustVelocity": 2900,
+    "dragCoefficient": 0.12,
+    "frontalArea": 1.27
+  },
+  {
+    "name": "Electron 1st Stage",
+    "wetMass": 12500,
+    "dryMass": 950,
+    "burnTime": 150,
+    "exhaustVelocity": 3000,
+    "dragCoefficient": 0.12,
+    "frontalArea": 0.79
+  },
+  {
+    "name": "New Shepard",
+    "wetMass": 75000,
+    "dryMass": 18000,
+    "burnTime": 110,
+    "exhaustVelocity": 2400,
+    "dragCoefficient": 0.14,
+    "frontalArea": 3.14
+  },
+  {
+    "name": "Electron",
+    "stages": [
+      {
+        "name": "Stage 1",
+        "wetMass": 12500,
+        "dryMass": 950,
+        "burnTime": 150,
+        "exhaustVelocity": 3000
+      },
+      {
+        "name": "Stage 2",
+        "wetMass": 4000,
+        "dryMass": 500,
+        "burnTime": 200,
+        "exhaustVelocity": 3200
+      }
+    ],
+    "dragCoefficient": 0.12,
+    "frontalArea": 0.79
+  }
+]
