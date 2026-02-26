@@ -165,7 +165,7 @@ for i in range(steps - 1):
     time[i+1] = time[i] + dt
     altitude[i] = calculateAltitude(position[i])
 
-    theta -= 0.006 * dt
+    theta -= 0.00575 * dt
     angle[i + 1] = theta
     thrust_vector = thrust * np.array([np.cos(theta), np.sin(theta)])
 
@@ -212,16 +212,9 @@ theta = np.linspace(0, 2*np.pi, 1000)
 earth_x = EARTH_RADIUS * np.cos(theta)
 earth_y = EARTH_RADIUS * np.sin(theta)
 
-plt.subplot(2,1,1)
 plt.plot(earth_x, earth_y)
 plt.plot(position[:,0], position[:,1])
 plt.gca().set_aspect('equal')
-
-plt.subplot(2,1,2)
-plt.plot(time, altitude)
-plt.xlabel("Time (s)")
-plt.ylabel("Altitude (m)")
-plt.title("Altitude vs Time")
 
 plt.tight_layout()
 plt.show()
