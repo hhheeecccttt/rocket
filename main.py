@@ -61,7 +61,6 @@ position = np.zeros((steps, 2))
 acceleration = np.zeros((steps, 2))
 altitude = np.zeros(steps)
 
-
 mass[0] = wetMass
 angle[0] = launchAngle
 velocity[0] = [EARTH_ANGULAR_VELOCITY * EARTH_RADIUS, 0]
@@ -170,34 +169,20 @@ angle = angle[1:final_step]
 altitude = altitude[1:final_step]
 acceleration = acceleration[1:final_step]
 
-'''
-plt.figure(figsize=(10,6))
-plt.subplot(3,1,1)
-plt.plot(position[:,0], position[:,1])
-plt.xlabel("Horizontal distance (m)")
-plt.ylabel("Altitude (m)")
-plt.title(f"Rocket Trajectory at {launchAngle}° Launch")
-
-plt.subplot(3,1,2)
-plt.plot(time, velocity[:,1])
-plt.xlabel("Time (s)")
-plt.ylabel("Vertical velocity (m/s)")
-plt.title("Vertical Velocity vs Time")
-
-plt.subplot(3,1,3)
-plt.plot(time, -angle * 180 / math.pi + 90)
-plt.xlabel("Time (s)")
-plt.ylabel("Angle (deg)")
-plt.title("Angle vs Time")
-'''
-
 theta = np.linspace(0, 2*np.pi, 1000)
 earth_x = EARTH_RADIUS * np.cos(theta)
 earth_y = EARTH_RADIUS * np.sin(theta)
 
+plt.subplot(2,1,1)
 plt.plot(earth_x, earth_y)
 plt.plot(position[:,0], position[:,1])
 plt.gca().set_aspect('equal')
+
+plt.subplot(2,1,2)
+plt.plot(time, mass)
+plt.xlabel("Time (s)")
+plt.ylabel("Mass (kg)")
+plt.title("Mass vs Time")
 
 plt.tight_layout()
 plt.show()
