@@ -43,5 +43,26 @@
     "exhaustVelocity": 2400,
     "dragCoefficient": 0.14,
     "frontalArea": 3.14
+  },
+  {
+    "name": "Electron",
+    "stages": [
+      {
+        "name": "Stage 1",
+        "wetMass": 12500,
+        "dryMass": 950,
+        "burnTime": 150,
+        "exhaustVelocity": 3000
+      },
+      {
+        "name": "Stage 2",
+        "wetMass": 4000,
+        "dryMass": 500,
+        "burnTime": 200,
+        "exhaustVelocity": 3200
+      }
+    ],
+    "dragCoefficient": 0.12,
+    "frontalArea": 0.79
   }
 ]
