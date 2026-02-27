@@ -11,6 +11,9 @@ GRAVITATIONAL_CONSTANT = 6.67e-11
 SEA_LEVEL_AIR_DENSITY = 1.2251
 H = 8500
 SPEED_OF_SOUND = 340
+VERTICAL_CLIMB_TIME = 75
+PITCH_KICK_DEGREES  = 100
+PITCH_KICK_DURATION = 40
 
 T0 = 288.15 
 LAPSE = -0.0065  
@@ -35,6 +38,7 @@ with open('stats.json', 'r') as file:
 currentStageIndex = 0
 currentStage = stages[currentStageIndex]
 stageTime = 0
+time = 0
 
 fuelMass = currentStage["wetMass"] - currentStage["dryMass"]
 massFlowRate = fuelMass / currentStage["burnTime"]
@@ -48,7 +52,7 @@ launchAngle = 90
 theta = np.radians(launchAngle)
 mach = 340
 
-dt = 0.1
+dt = 1
 t_max = 10000
 steps = int(t_max / dt)
 final_step = steps - 1
@@ -66,20 +70,22 @@ velocity[0] = [EARTH_ANGULAR_VELOCITY * EARTH_RADIUS, 0]
 position[0] = [0, EARTH_RADIUS]
 
 def calculateAltitude(d):
-    x = d[0]
-    y=d[1]
-    return math.sqrt(x ** 2 + y ** 2) -  EARTH_RADIUS
+    return np.linalg.norm(d) -  EARTH_RADIUS
 
 def calculateAirDensity(height):
     return SEA_LEVEL_AIR_DENSITY * np.exp(-height / H)
 
 def calculateGravityVector(d):
-    r = math.sqrt(d[0] ** 2 + d[1] ** 2)
+    r = np.linalg.norm(d)
     g_mag = GRAVITATIONAL_CONSTANT * EARTH_MASS / r**2
     return -g_mag * (d / r)
 
 def calculateDragVector(v, d):
     height = calculateAltitude(d)
+
+    if (height > 80000):
+        return 0
+    
     rho = calculateAirDensity(height)
     speed = np.linalg.norm(v)
 
@@ -162,10 +168,17 @@ for i in range(steps - 1):
         thrust = 0
         mass[i+1] = mass[i]
 
+    if (time[i] < VERTICAL_CLIMB_TIME):
+        theta = np.radians(launchAngle)
+    elif (time[i] < VERTICAL_CLIMB_TIME + PITCH_KICK_DURATION):
+        theta -= np.radians(PITCH_KICK_DEGREES / PITCH_KICK_DURATION) * dt
+    else:
+        theta = math.atan2(velocity[i][1], velocity[i][0])
+
     time[i+1] = time[i] + dt
     altitude[i] = calculateAltitude(position[i])
 
-    theta -= 0.00575 * dt
+
     angle[i + 1] = theta
     thrust_vector = thrust * np.array([np.cos(theta), np.sin(theta)])
 
