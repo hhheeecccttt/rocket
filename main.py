@@ -1,7 +1,8 @@
-import numpy as np
 import json
 import math
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 EARTH_RADIUS = 6371000
 EARTH_MASS = 6e24
@@ -12,17 +13,17 @@ SEA_LEVEL_AIR_DENSITY = 1.2251
 H = 8500
 SPEED_OF_SOUND = 340
 VERTICAL_CLIMB_TIME = 75
-PITCH_KICK_DEGREES  = 100
-PITCH_KICK_DURATION = 40
+PITCH_KICK_DEGREES = 100
+PITCH_KICK_DURATION = 401
 
-T0 = 288.15 
-LAPSE = -0.0065  
-R = 287             
+T0 = 288.15
+LAPSE = -0.0065
+R = 287
 GAMMA = 1.4
 
 index = 5
 
-with open('stats.json', 'r') as file:
+with open("stats.json", "r") as file:
     data = json.load(file)
     rocket = data[index]
 
@@ -69,23 +70,27 @@ angle[0] = launchAngle
 velocity[0] = [EARTH_ANGULAR_VELOCITY * EARTH_RADIUS, 0]
 position[0] = [0, EARTH_RADIUS]
 
+
 def calculateAltitude(d):
-    return np.linalg.norm(d) -  EARTH_RADIUS
+    return np.linalg.norm(d) - EARTH_RADIUS
+
 
 def calculateAirDensity(height):
     return SEA_LEVEL_AIR_DENSITY * np.exp(-height / H)
+
 
 def calculateGravityVector(d):
     r = np.linalg.norm(d)
     g_mag = GRAVITATIONAL_CONSTANT * EARTH_MASS / r**2
     return -g_mag * (d / r)
 
+
 def calculateDragVector(v, d):
     height = calculateAltitude(d)
 
-    if (height > 80000):
+    if height > 80000:
         return 0
-    
+
     rho = calculateAirDensity(height)
     speed = np.linalg.norm(v)
 
@@ -98,10 +103,12 @@ def calculateDragVector(v, d):
     drag = 0.5 * rho * Cd * frontalArea * speed**2
     return -drag * (v / speed)
 
+
 def calculateAcceleration(d, v, m, T):
     gravity = calculateGravityVector(d)
     drag = calculateDragVector(v, d)
     return (T + drag) / m + gravity
+
 
 def calculateSpeedOfSound(height):
     h = max(height, 0)
@@ -112,22 +119,24 @@ def calculateSpeedOfSound(height):
         T = 216.65
 
     return np.sqrt(GAMMA * R * T)
-    
+
+
 def calculateMach(v, height):
     speed = np.linalg.norm(v)
     a = calculateSpeedOfSound(height)
     return speed / a
 
+
 def calculateDragCoefficient(M):
     Cd0 = dragCoefficient
-    
-    rise = 0.25 / (1 + np.exp(-20*(M - 0.9)))
-    decay = np.exp(-(M - 1.05)/0.5)
-    
+
     if M < 0.9:
         return Cd0
     else:
+        rise = 0.25 / (1 + np.exp(-20 * (M - 0.9)))
+        decay = np.exp(-(M - 1.05) / 0.5)
         return Cd0 + rise * decay * 2
+
 
 def RK4(d, v, m, T):
     k1v = v
@@ -144,50 +153,49 @@ def RK4(d, v, m, T):
 
     pos = d + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
     vel = v + (dt / 6) * (k1a + 2 * k2a + 2 * k3a + k4a)
-    
+
     return pos, vel
+
 
 for i in range(steps - 1):
     stageTime += dt
-    
-    if (stageTime < currentStage["burnTime"]):
+
+    if stageTime < currentStage["burnTime"]:
         mass[i + 1] = mass[i] - massFlowRate * dt
         thrust = massFlowRate * currentStage["exhaustVelocity"]
-    elif (currentStageIndex + 1 < len(stages)):
-            print(f"Stage {currentStageIndex+1} sep at t={time[i]:.1f}s")
-            mass[i] -= currentStage["dryMass"]
-            currentStageIndex += 1
-            stageTime = 0
-            currentStage = stages[currentStageIndex]
-            
-            fuelMass = currentStage["wetMass"] - currentStage["dryMass"]
-            massFlowRate = fuelMass / currentStage["burnTime"]
-            thrust = massFlowRate * currentStage["exhaustVelocity"]
-            mass[i+1] = mass[i]
+    elif currentStageIndex + 1 < len(stages):
+        print(f"Stage {currentStageIndex + 1} sep at t={time[i]:.1f}s")
+        mass[i] -= currentStage["dryMass"]
+        currentStageIndex += 1
+        stageTime = 0
+        currentStage = stages[currentStageIndex]
+
+        fuelMass = currentStage["wetMass"] - currentStage["dryMass"]
+        massFlowRate = fuelMass / currentStage["burnTime"]
+        thrust = massFlowRate * currentStage["exhaustVelocity"]
+        mass[i + 1] = mass[i]
     else:
         thrust = 0
-        mass[i+1] = mass[i]
+        mass[i + 1] = mass[i]
 
-    if (time[i] < VERTICAL_CLIMB_TIME):
+    if time[i] < VERTICAL_CLIMB_TIME:
         theta = np.radians(launchAngle)
-    elif (time[i] < VERTICAL_CLIMB_TIME + PITCH_KICK_DURATION):
+    elif time[i] < VERTICAL_CLIMB_TIME + PITCH_KICK_DURATION:
         theta -= np.radians(PITCH_KICK_DEGREES / PITCH_KICK_DURATION) * dt
     else:
         theta = math.atan2(velocity[i][1], velocity[i][0])
 
-    time[i+1] = time[i] + dt
+    time[i + 1] = time[i] + dt
     altitude[i] = calculateAltitude(position[i])
-
-
     angle[i + 1] = theta
     thrust_vector = thrust * np.array([np.cos(theta), np.sin(theta)])
-
-    position[i + 1], velocity[i + 1] = RK4(position[i], velocity[i], mass[i], thrust_vector)
+    position[i + 1], velocity[i + 1] = RK4(
+        position[i], velocity[i], mass[i], thrust_vector
+    )
 
     if calculateAltitude(position[i]) < 0:
         final_step = i - 1
         break
-
 
 time = time[1:final_step]
 velocity = velocity[1:final_step]
@@ -196,38 +204,13 @@ mass = mass[1:final_step]
 angle = angle[1:final_step]
 altitude = altitude[1:final_step]
 
-
-mach_values = np.linspace(0, 3, 500)
-cd_values = [calculateDragCoefficient(M) for M in mach_values]
-
-'''
-plt.figure(figsize=(10,6))
-plt.subplot(3,1,1)
-plt.plot(position[:,0], position[:,1])
-plt.xlabel("Horizontal distance (m)")
-plt.ylabel("Altitude (m)")
-plt.title(f"Rocket Trajectory at {launchAngle}° Launch")
-
-plt.subplot(3,1,2)
-plt.plot(time, velocity[:,1])
-plt.xlabel("Time (s)")
-plt.ylabel("Vertical velocity (m/s)")
-plt.title("Vertical Velocity vs Time")
-
-plt.subplot(3,1,3)
-plt.plot(time, -angle * 180 / math.pi + 90)
-plt.xlabel("Time (s)")
-plt.ylabel("Angle (deg)")
-plt.title("Angle vs Time")
-'''
-
-theta = np.linspace(0, 2*np.pi, 1000)
+theta = np.linspace(0, 2 * np.pi, 1000)
 earth_x = EARTH_RADIUS * np.cos(theta)
 earth_y = EARTH_RADIUS * np.sin(theta)
 
 plt.plot(earth_x, earth_y)
-plt.plot(position[:,0], position[:,1])
-plt.gca().set_aspect('equal')
+plt.plot(position[:, 0], position[:, 1])
+plt.gca().set_aspect("equal")
 
 plt.tight_layout()
 plt.show()
