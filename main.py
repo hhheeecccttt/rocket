@@ -3,6 +3,7 @@ import math
 import atmosphere
 
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import numpy as np
 
 EARTH_RADIUS = 6371000
@@ -192,11 +193,20 @@ def orbitalParameters():
     x_rot = x * np.cos(orbitAngle) - y * np.sin(orbitAngle)
     y_rot = x * np.sin(orbitAngle) + y * np.cos(orbitAngle)
     
-    plt.plot(position[:, 0], position[:, 1] , color="red")
-    plt.plot(x_rot, y_rot, '--', color="blue", label='Final orbit')
-    plt.plot(earth_x, earth_y)
-    plt.gca().set_aspect("equal")
+    fig, ax = plt.subplots()
+    ax.plot(earth_x, earth_y)
+    ax.plot(x_rot, y_rot, 'r--', label='Final orbit')
+    ax.set_aspect("equal")
 
+    trail, = ax.plot([], [], 'b-')
+    dot, = ax.plot([], [], 'bo', markersize=5)
+
+    def update(frame):
+        trail.set_data(position[:frame, 0], position[:frame, 1])
+        dot.set_data([position[frame, 0]], [position[frame, 1]])
+        return trail, dot
+
+    ani = FuncAnimation(fig, update, frames=range(0, len(position), 10), interval=1, blit=True)
     plt.tight_layout()
     plt.show()
 
