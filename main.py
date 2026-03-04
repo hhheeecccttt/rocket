@@ -3,6 +3,7 @@ import math
 import atmosphere
 from constants import *
 import output
+from rocket import Rocket, Stage
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -12,31 +13,19 @@ index = 0
 
 with open("stats.json", "r") as file:
     data = json.load(file)
-    rocket = data[index]
+    rocket_data = data[index]
 
-    stages = rocket["stages"]
-    initialStage = stages[0]
-
-    name = rocket["name"]
-    wetMass = sum(stage["wetMass"] for stage in stages)
-
-    dragCoefficient = rocket["dragCoefficient"]
-    frontalArea = rocket["frontalArea"]
-
-    VERTICAL_CLIMB_TIME = rocket["VERTICAL_CLIMB_TIME"]
-    PITCH_KICK_DEGREES = rocket["PITCH_KICK_DEGREES"]
-    PITCH_KICK_DURATION = rocket["PITCH_KICK_DURATION"]
+rocket = Rocket.from_dict(rocket_data)
 
 currentStageIndex = 0
-currentStage = stages[currentStageIndex]
 stageTime = 0
 time = 0
 
-fuelMass = currentStage["wetMass"] - currentStage["dryMass"]
-massFlowRate = fuelMass / currentStage["burnTime"]
+fuelMass = rocket.currentStage.wetMass - rocket.currentStage.dryMass
+massFlowRate = fuelMass / rocket.currentStage.burnTime
 thrust = 0
 
-print(name)
+print(rocket.name)
 
 launchAngle = 90
 theta = np.radians(launchAngle)
@@ -54,7 +43,7 @@ velocity = np.zeros((steps, 2))
 position = np.zeros((steps, 2))
 altitude = np.zeros(steps)
 
-mass[0] = wetMass
+mass[0] = rocket.wetMass
 angle[0] = launchAngle
 velocity[0] = [EARTH_ANGULAR_VELOCITY * EARTH_RADIUS, 0]
 position[0] = [0, EARTH_RADIUS]
@@ -87,7 +76,7 @@ def calculateDragVector(v, d):
     mach = atmosphere.calculateMach(relativeSpeed, height)
     Cd = calculateDragCoefficient(mach)
 
-    drag = 0.5 * rho * Cd * frontalArea * speed**2
+    drag = 0.5 * rho * Cd * rocket.frontalArea * speed**2
     return -drag * (relativeSpeed / speed)
 
 def calculateAcceleration(d, v, m, T):
@@ -96,7 +85,7 @@ def calculateAcceleration(d, v, m, T):
     return (T + drag) / m + gravity
 
 def calculateDragCoefficient(M):
-    Cd0 = dragCoefficient
+    Cd0 = rocket.dragCoefficient
 
     if M < 0.9:
         return Cd0
@@ -131,22 +120,32 @@ def RK4(d, v, m, T):
     return pos, vel
 
 for i in range(steps - 1):
-    stageTime += dt
+    rocket.stageTime += dt
+    currentStage = rocket.currentStage
+    massFlowRate = currentStage.massFlowRate
 
-    if stageTime < currentStage["burnTime"]:
+    if rocket.stageTime < currentStage.burnTime:
         mass[i + 1] = mass[i] - massFlowRate * dt
-        thrust = calculateThrust(currentStage["seaISP"], currentStage["vacuumISP"], calculateAltitude(position[i]))
-    elif currentStageIndex + 1 < len(stages):
-        print(f"Stage {currentStageIndex + 1} sep at t={time[i]:.1f}s")
-        mass[i] -= currentStage["dryMass"]
-        currentStageIndex += 1
-        stageTime = 0
-        currentStage = stages[currentStageIndex]
+        thrust = calculateThrust(
+            currentStage.seaISP,
+            currentStage.vacuumISP,
+            calculateAltitude(position[i])
+        )
 
-        fuelMass = currentStage["wetMass"] - currentStage["dryMass"]
-        massFlowRate = fuelMass / currentStage["burnTime"]
-        thrust = calculateThrust(currentStage["seaISP"], currentStage["vacuumISP"], calculateAltitude(position[i]))
+    elif rocket.next_stage():
+        mass[i] -= currentStage.dryMass
+        currentStage = rocket.currentStage
+        fuelMass = currentStage.fuelMass
+        massFlowRate = currentStage.massFlowRate
+
+        thrust = calculateThrust(
+            currentStage.seaISP,
+            currentStage.vacuumISP,
+            calculateAltitude(position[i])
+        )
+
         mass[i + 1] = mass[i]
+
     else:
         thrust = 0
         mass[i + 1] = mass[i]
@@ -157,10 +156,10 @@ for i in range(steps - 1):
     if v >= np.sqrt(GRAVITATIONAL_CONSTANT * EARTH_MASS / r):
         thrust = 0
 
-    if time[i] < VERTICAL_CLIMB_TIME:
+    if time[i] < rocket.VERTICAL_CLIMB_TIME:
         theta = np.radians(launchAngle)
-    elif time[i] < VERTICAL_CLIMB_TIME + PITCH_KICK_DURATION:
-        theta -= np.radians(PITCH_KICK_DEGREES / PITCH_KICK_DURATION) * dt
+    elif time[i] < rocket.VERTICAL_CLIMB_TIME + rocket.PITCH_KICK_DURATION:
+        theta -= np.radians(rocket.PITCH_KICK_DEGREES / rocket.PITCH_KICK_DURATION) * dt
     else:
         relative_vel = calculateRelativeVelocity(position[i], velocity[i])
         theta = math.atan2(relative_vel[1], relative_vel[0])
