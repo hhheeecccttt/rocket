@@ -1,29 +1,5 @@
 [
   {
-    "name": "Electron",
-    "stages": [
-      {
-        "name": "Stage 1",
-        "wetMass": 12500,
-        "dryMass": 950,
-        "burnTime": 150,
-        "exhaustVelocity": 3000
-      },
-      {
-        "name": "Stage 2",
-        "wetMass": 4000,
-        "dryMass": 500,
-        "burnTime": 200,
-        "exhaustVelocity": 3200
-      }
-    ],
-    "dragCoefficient": 0.12,
-    "frontalArea": 0.79,
-    "VERTICAL_CLIMB_TIME": 10,
-    "PITCH_KICK_DEGREES": 1.2,
-    "PITCH_KICK_DURATION": 55.1
-  },
-  {
     "name": "Saturn V",
     "stages": [
       {

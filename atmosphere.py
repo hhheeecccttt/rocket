@@ -1,9 +1,6 @@
 import math
-
-SEA_LEVEL_GRAVITY = 9.80665
-SPECIFIC_GAS_CONSTANT = 287.05
-SOLAR_FLUX_INDEX = 140
-GEOMAGNETIC_INDEX = 5
+from constants import *
+import numpy as np
 
 #Base Height, Base Temp, Base Density, Lapse Rate 
 layers = [
@@ -36,3 +33,15 @@ def density(height):
         T = baseTemperature + lapseRate * (height - baseHeight)
         exponent = - (SEA_LEVEL_GRAVITY / (SPECIFIC_GAS_CONSTANT * lapseRate) + 1)
         return baseDensity * math.pow(T / baseTemperature, exponent)
+
+def calculateMach(v, height):
+    speed = np.linalg.norm(v)
+    h = max(height, 0)
+
+    if h < 11000:
+        T = T0 + LAPSE * h
+    else:
+        T = 216.65
+
+    a = math.sqrt(GAMMA * R * T)
+    return speed / a
