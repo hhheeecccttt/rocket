@@ -30,7 +30,7 @@
     "dragCoefficient": 0.5,
     "frontalArea": 80,
     "VERTICAL_CLIMB_TIME": 12,
-    "PITCH_KICK_DEGREES": 3.5,
-    "PITCH_KICK_DURATION": 10
+    "PITCH_KICK_DEGREES": 3.2,
+    "PITCH_KICK_DURATION": 8
   }
 ]

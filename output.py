@@ -4,20 +4,20 @@ import numpy as np
 from constants import *
 import math
 
-def output(position, velocity):
+def output(position, velocity, planet):
     positionVector = position[-1]
     velocityVector = velocity[-1]
     orbitalRadius = np.linalg.norm(positionVector)
     orbitalVelocity = np.linalg.norm(velocityVector)
 
-    mu = GRAVITATIONAL_CONSTANT * EARTH_MASS
+    mu = GRAVITATIONAL_CONSTANT * planet.MASS
     specificEnergy = 0.5 * orbitalVelocity ** 2 - mu / orbitalRadius
     angularMomentum = np.cross(positionVector, velocityVector)
     eccentricity = math.sqrt(1 + (2 * specificEnergy * (angularMomentum ** 2) / (mu ** 2)))
     semiMajorAxis = -mu / (2 * specificEnergy)
     semiMinorAxis = semiMajorAxis * np.sqrt(1 - eccentricity**2)
-    periapsis = semiMajorAxis * (1 - eccentricity) - EARTH_RADIUS
-    apoapsis  = semiMajorAxis * (1 + eccentricity) - EARTH_RADIUS
+    periapsis = semiMajorAxis * (1 - eccentricity) - planet.RADIUS
+    apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS5
 
     print(f"Semi-major axis: {semiMajorAxis / 1000:.1f} km")
     print(f"Eccentricity: {eccentricity:.4f}")
@@ -25,8 +25,8 @@ def output(position, velocity):
     print(f"Apoapsis altitude: {apoapsis/1000:.1f} km")
 
     theta = np.linspace(0, 2 * np.pi, 1000)
-    earth_x = EARTH_RADIUS * np.cos(theta)
-    earth_y = EARTH_RADIUS * np.sin(theta)
+    earth_x = planet.RADIUS * np.cos(theta)
+    earth_y = planet.RADIUS * np.sin(theta)
 
     x = semiMajorAxis * np.cos(theta) - semiMajorAxis * eccentricity
     y = semiMinorAxis * np.sin(theta)
