@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBITAL TRAJECTORY VIEWER</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: #00ff88;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  #canvas { display: block; }
+
+  /* HUD overlays */
+  #hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Top bar */
+  #topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 16px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,255,136,0.15);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+  }
+
+  #mission-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.25em;
+    color: #00ff88;
+    text-shadow: 0 0 20px rgba(0,255,136,0.6);
+  }
+
+  #mission-time {
+    font-size: 12px;
+    color: rgba(0,255,136,0.5);
+    letter-spacing: 0.15em;
+  }
+
+  /* Orbital elements panel */
+  #orbital-panel {
+    position: fixed;
+    top: 60px;
+    left: 24px;
+    width: 240px;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-left: 2px solid #00ff88;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+  }
+
+  #orbital-panel h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: rgba(0,255,136,0.5);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  .element-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,255,136,0.07);
+  }
+
+  .element-row:last-child { border-bottom: none; margin-bottom: 0; }
+
+  .element-label {
+    font-size: 10px;
+    color: rgba(0,255,136,0.45);
+    letter-spacing: 0.1em;
+  }
+
+  .element-value {
+    font-size: 12px;
+    color: #00ff88;
+    text-shadow: 0 0 8px rgba(0,255,136,0.4);
+  }
+
+  /* Telemetry panel */
+  #telemetry-panel {
+    position: fixed;
+    top: 60px;
+    right: 24px;
+    width: 220px;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-right: 2px solid #00ff88;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+  }
+
+  #telemetry-panel h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: rgba(0,255,136,0.5);
+    margin-bottom: 14px;
+  }
+
+  /* Altitude bar */
+  .bar-container {
+    margin-top: 6px;
+    margin-bottom: 12px;
+  }
+
+  .bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: rgba(0,255,136,0.45);
+    margin-bottom: 4px;
+  }
+
+  .bar-track {
+    height: 3px;
+    background: rgba(0,255,136,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, #00ff88, #00ffcc);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 6px rgba(0,255,136,0.6);
+  }
+
+  /* Playback controls */
+  #controls {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(0,0,0,0.85);
+    border: 1px solid rgba(0,255,136,0.25);
+    padding: 12px 24px;
+    backdrop-filter: blur(8px);
+    pointer-events: all;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: 1px solid rgba(0,255,136,0.4);
+    color: #00ff88;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .ctrl-btn:hover {
+    background: rgba(0,255,136,0.1);
+    border-color: #00ff88;
+    box-shadow: 0 0 12px rgba(0,255,136,0.2);
+  }
+
+  .ctrl-btn.active {
+    background: rgba(0,255,136,0.15);
+    border-color: #00ff88;
+    box-shadow: 0 0 16px rgba(0,255,136,0.3);
+  }
+
+  #scrubber {
+    width: 240px;
+    -webkit-appearance: none;
+    height: 2px;
+    background: rgba(0,255,136,0.2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  #scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(0,255,136,0.8);
+    cursor: pointer;
+  }
+
+  #speed-display {
+    font-size: 10px;
+    color: rgba(0,255,136,0.5);
+    width: 50px;
+    text-align: center;
+  }
+
+  /* Corner decorations */
+  .corner {
+    position: fixed;
+    width: 24px;
+    height: 24px;
+    border-color: rgba(0,255,136,0.3);
+    border-style: solid;
+  }
+  .corner.tl { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+  .corner.tr { top: 8px; right: 8px; border-width: 1px 1px 0 0; }
+  .corner.bl { bottom: 8px; left: 8px; border-width: 0 0 1px 1px; }
+  .corner.br { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+
+  /* Loading screen */
+  #loading {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 24px;
+  }
+
+  #loading h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: rgba(0,255,136,0.6);
+  }
+
+  .load-bar-track {
+    width: 240px;
+    height: 1px;
+    background: rgba(0,255,136,0.15);
+  }
+
+  .load-bar-fill {
+    height: 100%;
+    background: #00ff88;
+    box-shadow: 0 0 8px rgba(0,255,136,0.8);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  #load-status {
+    font-size: 10px;
+    color: rgba(0,255,136,0.4);
+    letter-spacing: 0.2em;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: rgba(0,255,136,0.25);
+    letter-spacing: 0.2em;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>INITIALIZING TRAJECTORY VIEWER</h1>
+  <div class="load-bar-track"><div class="load-bar-fill" id="load-bar"></div></div>
+  <div id="load-status">LOADING TRAJECTORY DATA...</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div id="hud">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div id="topbar">
+    <div id="mission-title">ORBITAL TRAJECTORY VIEWER</div>
+    <div id="mission-time">T+ <span id="t-time">00:00:00</span></div>
+  </div>
+
+  <div id="orbital-panel">
+    <h3>ORBITAL ELEMENTS</h3>
+    <div class="element-row">
+      <span class="element-label">SEMI-MAJOR AXIS</span>
+      <span class="element-value" id="el-sma">—</span>
+    </div>
+    <div class="element-row">
+      <span class="element-label">ECCENTRICITY</span>
+      <span class="element-value" id="el-ecc">—</span>
+    </div>
+    <div class="element-row">
+      <span class="element-label">INCLINATION</span>
+      <span class="element-value" id="el-inc">—</span>
+    </div>
+    <div class="element-row">
+      <span class="element-label">PERIAPSIS</span>
+      <span class="element-value" id="el-per">—</span>
+    </div>
+    <div class="element-row">
+      <span class="element-label">APOAPSIS</span>
+      <span class="element-value" id="el-apo">—</span>
+    </div>
+  </div>
+
+  <div id="telemetry-panel">
+    <h3>TELEMETRY</h3>
+    <div class="element-row">
+      <span class="element-label">ALTITUDE</span>
+      <span class="element-value" id="tel-alt">—</span>
+    </div>
+    <div class="bar-container">
+      <div class="bar-track"><div class="bar-fill" id="alt-bar" style="width:0%"></div></div>
+    </div>
+    <div class="element-row">
+      <span class="element-label">VELOCITY</span>
+      <span class="element-value" id="tel-vel">—</span>
+    </div>
+    <div class="element-row">
+      <span class="element-label">DOWNRANGE</span>
+      <span class="element-value" id="tel-dist">—</span>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn" id="btn-slower">◀◀</button>
+  <button class="ctrl-btn active" id="btn-play">⏸ PAUSE</button>
+  <button class="ctrl-btn" id="btn-faster">▶▶</button>
+  <input type="range" id="scrubber" min="0" max="100" value="0">
+  <div id="speed-display">1×</div>
+</div>
+
+<div id="hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── Load trajectory ───────────────────────────────────────────────
+async function loadTrajectory() {
+  setLoadStatus('FETCHING TRAJECTORY DATA...', 20);
+  const res = await fetch('trajectory.json');
+  if (!res.ok) throw new Error('trajectory.json not found — run the simulation first');
+  setLoadStatus('PARSING DATA...', 60);
+  const data = await res.json();
+  setLoadStatus('BUILDING SCENE...', 85);
+  return data;
+}
+
+function setLoadStatus(msg, pct) {
+  document.getElementById('load-status').textContent = msg;
+  document.getElementById('load-bar').style.width = pct + '%';
+}
+
+// ─── Main ───────────────────────────────────────────────────────────
+loadTrajectory().then(data => {
+  const { planetRadius, position, velocity } = data;
+  const N = position.length;
+  const SCALE = 1 / planetRadius; // normalize so Earth radius = 1
+
+  // ── Renderer ──────────────────────────────────────────────────────
+  const canvas = document.getElementById('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.001, 1000);
+  camera.position.set(0, 0, 3.5);
+
+  // ── Lights ────────────────────────────────────────────────────────
+  scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+  sun.position.set(5, 3, 5);
+  scene.add(sun);
+
+  // ── Earth ─────────────────────────────────────────────────────────
+  const earthGeo = new THREE.SphereGeometry(1, 64, 64);
+  const earthMat = new THREE.MeshPhongMaterial({
+    color: 0x0a1628,
+    emissive: 0x050d18,
+    specular: 0x112244,
+    shininess: 20,
+    transparent: true,
+    opacity: 0.95,
+    wireframe: false,
+  });
+  const earth = new THREE.Mesh(earthGeo, earthMat);
+  scene.add(earth);
+
+  // Wireframe overlay
+  const wireGeo = new THREE.SphereGeometry(1.002, 24, 24);
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x00ff88,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.06,
+  });
+  scene.add(new THREE.Mesh(wireGeo, wireMat));
+
+  // Equator ring
+  const eqCurve = new THREE.EllipseCurve(0, 0, 1.001, 1.001, 0, 2 * Math.PI);
+  const eqPoints = eqCurve.getPoints(128).map(p => new THREE.Vector3(p.x, 0, p.y));
+  const eqGeo = new THREE.BufferGeometry().setFromPoints(eqPoints);
+  scene.add(new THREE.Line(eqGeo, new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.2 })));
+
+  // Atmosphere glow
+  const atmGeo = new THREE.SphereGeometry(1.06, 32, 32);
+  const atmMat = new THREE.MeshPhongMaterial({
+    color: 0x0044aa,
+    transparent: true,
+    opacity: 0.08,
+    side: THREE.FrontSide,
+  });
+  scene.add(new THREE.Mesh(atmGeo, atmMat));
+
+  // Stars
+  const starVerts = [];
+  for (let i = 0; i < 3000; i++) {
+    const theta = Math.random() * 2 * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 80 + Math.random() * 20;
+    starVerts.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.7 })));
+
+  // ── Trajectory line ───────────────────────────────────────────────
+  const trajPoints = position.map(p => new THREE.Vector3(p[0] * SCALE, p[2] * SCALE, -p[1] * SCALE));
+
+  // Color by altitude: gradient green → orange → white
+  const colors = [];
+  const maxAlt = Math.max(...position.map(p => Math.sqrt(p[0]**2 + p[1]**2 + p[2]**2))) - planetRadius;
+  for (let i = 0; i < trajPoints.length; i++) {
+    const alt = Math.sqrt(position[i][0]**2 + position[i][1]**2 + position[i][2]**2) - planetRadius;
+    const t = Math.min(alt / maxAlt, 1);
+    const c = new THREE.Color();
+    c.setHSL(0.38 - t * 0.25, 1.0, 0.4 + t * 0.3);
+    colors.push(c.r, c.g, c.b);
+  }
+
+  const trajGeo = new THREE.BufferGeometry().setFromPoints(trajPoints);
+  trajGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const trajMat = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 2 });
+  const trajLine = new THREE.Line(trajGeo, trajMat);
+  scene.add(trajLine);
+
+  // ── Rocket marker ─────────────────────────────────────────────────
+  const rocketGeo = new THREE.SphereGeometry(0.018, 8, 8);
+  const rocketMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const rocketMesh = new THREE.Mesh(rocketGeo, rocketMat);
+  scene.add(rocketMesh);
+
+  // Glow ring around rocket
+  const glowGeo = new THREE.RingGeometry(0.022, 0.032, 16);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+  const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+  scene.add(glowMesh);
+
+  // Trail (last 80 points)
+  const TRAIL_LEN = 80;
+  const trailGeo = new THREE.BufferGeometry();
+  const trailPos = new Float32Array(TRAIL_LEN * 3);
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+  const trailMat = new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.5 });
+  const trailLine = new THREE.Line(trailGeo, trailMat);
+  scene.add(trailLine);
+
+  // Launch marker
+  const launchGeo = new THREE.SphereGeometry(0.012, 8, 8);
+  const launchMesh = new THREE.Mesh(launchGeo, new THREE.MeshBasicMaterial({ color: 0x00ff88 }));
+  launchMesh.position.copy(trajPoints[0]);
+  scene.add(launchMesh);
+
+  // ── Orbit Controls (manual) ───────────────────────────────────────
+  let isDragging = false, lastX = 0, lastY = 0;
+  let spherical = { theta: 0.3, phi: 1.2, r: 3.5 };
+
+  canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+  canvas.addEventListener('mouseup', () => isDragging = false);
+  canvas.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    spherical.theta -= (e.clientX - lastX) * 0.005;
+    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi - (e.clientY - lastY) * 0.005));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  canvas.addEventListener('wheel', e => {
+    spherical.r = Math.max(1.3, Math.min(10, spherical.r + e.deltaY * 0.003));
+  });
+
+  // Touch support
+  let lastTouchDist = null;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+  });
+  canvas.addEventListener('touchend', () => { isDragging = false; lastTouchDist = null; });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && isDragging) {
+      spherical.theta -= (e.touches[0].clientX - lastX) * 0.005;
+      spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi - (e.touches[0].clientY - lastY) * 0.005));
+      lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  // ── Playback state ────────────────────────────────────────────────
+  let frame = 0;
+  let playing = true;
+  let speed = 1;
+  let frameAccum = 0;
+
+  const MU = 3.986e14;
+  const scrubber = document.getElementById('scrubber');
+
+  document.getElementById('btn-play').addEventListener('click', () => {
+    playing = !playing;
+    document.getElementById('btn-play').textContent = playing ? '⏸ PAUSE' : '▶ PLAY';
+    document.getElementById('btn-play').classList.toggle('active', playing);
+  });
+
+  document.getElementById('btn-faster').addEventListener('click', () => {
+    speed = Math.min(speed * 2, 64);
+    document.getElementById('speed-display').textContent = speed + '×';
+  });
+
+  document.getElementById('btn-slower').addEventListener('click', () => {
+    speed = Math.max(speed / 2, 1);
+    document.getElementById('speed-display').textContent = speed + '×';
+  });
+
+  scrubber.addEventListener('input', () => {
+    frame = Math.floor(scrubber.value / 100 * (N - 1));
+  });
+
+  // ── Orbital elements at current frame ────────────────────────────
+  function updateOrbitalElements(idx) {
+    const p = position[idx];
+    const v = velocity[idx];
+
+    const r = Math.sqrt(p[0]**2 + p[1]**2 + p[2]**2);
+    const vMag = Math.sqrt(v[0]**2 + v[1]**2 + v[2]**2);
+    const alt = (r - planetRadius) / 1000;
+
+    // h = r × v
+    const hx = p[1]*v[2] - p[2]*v[1];
+    const hy = p[2]*v[0] - p[0]*v[2];
+    const hz = p[0]*v[1] - p[1]*v[0];
+    const hMag = Math.sqrt(hx**2 + hy**2 + hz**2);
+
+    const energy = 0.5 * vMag**2 - MU / r;
+    const ecc = Math.max(0, Math.sqrt(Math.abs(1 + 2 * energy * hMag**2 / MU**2)));
+    const sma = -MU / (2 * energy);
+    const inc = Math.acos(Math.max(-1, Math.min(1, hz / hMag))) * 180 / Math.PI;
+
+    const per = (sma * (1 - ecc) - planetRadius) / 1000;
+    const apo = (sma * (1 + ecc) - planetRadius) / 1000;
+
+    document.getElementById('el-sma').textContent = (sma / 1000).toFixed(0) + ' km';
+    document.getElementById('el-ecc').textContent = ecc.toFixed(4);
+    document.getElementById('el-inc').textContent = inc.toFixed(2) + '°';
+    document.getElementById('el-per').textContent = per.toFixed(0) + ' km';
+    document.getElementById('el-apo').textContent = apo.toFixed(0) + ' km';
+
+    document.getElementById('tel-alt').textContent = alt.toFixed(1) + ' km';
+    document.getElementById('tel-vel').textContent = (vMag / 1000).toFixed(2) + ' km/s';
+
+    const dx = p[0] - position[0][0], dy = p[1] - position[0][1], dz = p[2] - position[0][2];
+    document.getElementById('tel-dist').textContent = (Math.sqrt(dx**2+dy**2+dz**2)/1000).toFixed(0) + ' km';
+
+    const altPct = Math.min(alt / (maxAlt / 1000) * 100, 100);
+    document.getElementById('alt-bar').style.width = altPct + '%';
+
+    const secs = idx * 10;
+    const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
+    const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('t-time').textContent = `${hh}:${mm}:${ss}`;
+  }
+
+  // ── Animate ───────────────────────────────────────────────────────
+  let last = performance.now();
+
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    // Earth slow rotation
+    earth.rotation.y += 0.0003;
+
+    // Camera
+    camera.position.set(
+      spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+      spherical.r * Math.cos(spherical.phi),
+      spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+    );
+    camera.lookAt(0, 0, 0);
+
+    // Advance frame
+    if (playing) {
+      frameAccum += speed * dt * 10; // ~10 sim-steps per real second at 1x
+      if (frameAccum >= 1) {
+        frame = Math.min(frame + Math.floor(frameAccum), N - 1);
+        frameAccum -= Math.floor(frameAccum);
+        if (frame >= N - 1) { frame = N - 1; playing = false; document.getElementById('btn-play').textContent = '▶ PLAY'; }
+      }
+    }
+
+    scrubber.value = (frame / (N - 1)) * 100;
+
+    // Rocket position
+    const rp = trajPoints[frame];
+    rocketMesh.position.copy(rp);
+    glowMesh.position.copy(rp);
+    glowMesh.lookAt(camera.position);
+
+    // Trail
+    const start = Math.max(0, frame - TRAIL_LEN);
+    for (let i = 0; i < TRAIL_LEN; i++) {
+      const idx = Math.min(start + i, frame);
+      trailPos[i * 3]     = trajPoints[idx].x;
+      trailPos[i * 3 + 1] = trajPoints[idx].y;
+      trailPos[i * 3 + 2] = trajPoints[idx].z;
+    }
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.setDrawRange(0, Math.min(frame - start + 1, TRAIL_LEN));
+
+    // HUD
+    updateOrbitalElements(frame);
+
+    renderer.render(scene, camera);
+  }
+
+  // Hide loader
+  setLoadStatus('READY', 100);
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+    requestAnimationFrame(animate);
+  }, 400);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+}).catch(err => {
+  document.getElementById('load-status').textContent = 'ERROR: ' + err.message;
+  document.getElementById('load-bar').style.background = '#ff4444';
+  document.getElementById('load-bar').style.width = '100%';
+});
+</script>
+</body>
+</html>
