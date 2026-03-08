@@ -29,8 +29,13 @@
     ],
     "dragCoefficient": 0.5,
     "frontalArea": 80,
+    "launchAzimuth": 20,
     "VERTICAL_CLIMB_TIME": 12,
     "PITCH_KICK_DEGREES": 3.2,
-    "PITCH_KICK_DURATION": 8
+    "PITCH_KICK_DURATION": 8,
+    "VERTICAL_CLIMB_TIME1": 12,
+    "PITCH_KICK_DEGREES1": 3.5,
+    "PITCH_KICK_DURATION1": 8
   }
 ]
+

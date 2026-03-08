@@ -19,41 +19,30 @@ rocket = Rocket.from_dict(rocket_data)
 
 print(rocket.name)
 
-launchAngle = 90
-theta = np.radians(launchAngle)
-
 dt = 1
 t_max = 10000
 steps = int(t_max / dt)
-final_step = steps - 1
+final_step = steps
 
-time = np.zeros(steps)
+time = np.arange(steps) * dt
 mass = np.zeros(steps)
-angle = np.zeros(steps)
-velocity = np.zeros((steps, 2))
-position = np.zeros((steps, 2))
-altitude = np.zeros(steps)
+velocity = np.zeros((steps, 3))
+position = np.zeros((steps, 3))
 
 mass[0] = rocket.mass
-angle[0] = launchAngle
-velocity[0] = [earth.ANGULAR_VELOCITY * earth.RADIUS, 0]
-position[0] = [0, earth.RADIUS]
-
-def calculateGravityVector(pos, planet):
-    r = np.linalg.norm(pos)
-    g_mag = GRAVITATIONAL_CONSTANT * planet.MASS / r**2
-    return -g_mag * (pos / r)
+velocity[0] = [0, earth.ANGULAR_VELOCITY * earth.RADIUS, 0]
+position[0] = [earth.RADIUS, 0, 0]
 
 def calculateDragVector(d, v):
     height = utilities.calculateAltitude(d, earth)
 
     if height > 80000:
-        return np.array([0.0, 0.0])
+        return np.array([0.0, 0.0, 0.0])
 
-    relativeSpeed = utilities.calculateRelativeVelocity(position[i], velocity[i], earth)
+    relativeSpeed = utilities.calculateRelativeVelocity(d, v, earth)
     speed = np.linalg.norm(relativeSpeed)
     if speed == 0:
-        return np.array([0.0, 0.0])
+        return np.array([0.0, 0.0, 0.0])
 
     rho = atmosphere.density(height)
     mach = atmosphere.calculateMach(relativeSpeed, height)
@@ -63,7 +52,8 @@ def calculateDragVector(d, v):
     return -drag * (relativeSpeed / speed)
 
 def calculateAcceleration(d, v, m, T, planet):
-    gravity = calculateGravityVector(d, planet)
+    r = np.linalg.norm(d)
+    gravity = -GRAVITATIONAL_CONSTANT * planet.MASS / r**2 * (d / r)
     drag = calculateDragVector(d, v)
     return (T + drag) / m + gravity
 
@@ -107,21 +97,35 @@ for i in range(steps - 1):
         thrust = 0
 
     if time[i] < rocket.VERTICAL_CLIMB_TIME:
-        theta = np.radians(launchAngle)
+        direction = position[i] / np.linalg.norm(position[i])
     elif time[i] < rocket.VERTICAL_CLIMB_TIME + rocket.PITCH_KICK_DURATION:
-        theta -= np.radians(rocket.PITCH_KICK_DEGREES / rocket.PITCH_KICK_DURATION) * dt
+        t_norm = (time[i] - rocket.VERTICAL_CLIMB_TIME) / rocket.PITCH_KICK_DURATION
+        pitch_angle = np.radians(90 - rocket.PITCH_KICK_DEGREES * t_norm)
+        radial = position[i] / np.linalg.norm(position[i])
+        az = np.radians(rocket.launchAzimuth)
+        north = np.array([0, 0, 1])
+        north = north - np.dot(north, radial) * radial
+        north /= np.linalg.norm(north)
+        east_vec = np.array([0, 1, 0])
+        east_vec = east_vec - np.dot(east_vec, radial) * radial
+        east_vec /= np.linalg.norm(east_vec)
+        east = np.sin(az) * east_vec + np.cos(az) * north
+        east = east - np.dot(east, radial) * radial
+        east /= np.linalg.norm(east)
+        direction = np.sin(pitch_angle) * radial + np.cos(pitch_angle) * east
     else:
-        relative_vel = utilities.calculateRelativeVelocity(position[i], velocity[i], earth)
-        theta = math.atan2(relative_vel[1], relative_vel[0])
+        v_rel = velocity[i] - velocity[0]
+        if np.linalg.norm(v_rel) < 1.0:
+            direction = position[i] / np.linalg.norm(position[i])
+        else:
+            direction = v_rel / np.linalg.norm(v_rel)
 
-    time[i + 1] = time[i] + dt
-    altitude[i + 1] = height
-    angle[i + 1] = theta
-    thrust_vector = thrust * np.array([np.cos(theta), np.sin(theta)])
+    thrust_vector = thrust * direction
+
     position[i + 1], velocity[i + 1] = RK4(position[i], velocity[i], mass[i], thrust_vector, earth)
 
     if height < 0:
         final_step = i - 1
         break
 
-output.output(position, velocity, earth)
+output.output(position[:final_step], velocity[:final_step], earth)
