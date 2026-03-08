@@ -4,6 +4,7 @@ import utilities
 import atmosphere
 from constants import *
 import output
+import export
 from rocket import Rocket, Stage
 from planets import Earth
 import numpy as np
@@ -128,4 +129,5 @@ for i in range(steps - 1):
         final_step = i - 1
         break
 
-output.output(position[:final_step], velocity[:final_step], earth)
+output.output(position, velocity, earth)
+export.exportTrajectory(position, velocity, earth)
