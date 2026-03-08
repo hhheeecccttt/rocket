@@ -22,11 +22,12 @@ class Stage:
         return cls(wetMass=data["wetMass"], dryMass=data["dryMass"], burnTime=data["burnTime"], seaISP=data["seaISP"], vacuumISP=data["vacuumISP"])
 
 class Rocket:
-    def __init__(self, name, stages, dragCoefficient, frontalArea,VERTICAL_CLIMB_TIME, PITCH_KICK_DEGREES, PITCH_KICK_DURATION):
+    def __init__(self, name, stages, dragCoefficient, frontalArea, launchAzimuth, VERTICAL_CLIMB_TIME, PITCH_KICK_DEGREES, PITCH_KICK_DURATION):
         self.name = name
         self.stages = stages
         self.dragCoefficient = dragCoefficient
         self.frontalArea = frontalArea
+        self.launchAzimuth = launchAzimuth
         self.VERTICAL_CLIMB_TIME = VERTICAL_CLIMB_TIME
         self.PITCH_KICK_DEGREES = PITCH_KICK_DEGREES
         self.PITCH_KICK_DURATION = PITCH_KICK_DURATION
@@ -59,16 +60,14 @@ class Rocket:
         self.stageTime += dt
         stage = self.currentStage
 
-        if self.stageTime < stage.burnTime:
-            massFlowRate = stage.massFlowRate
-            self.mass -= massFlowRate * dt
-            return self.calculateThrust(height)
-        elif self.next_stage():
-            return self.calculateThrust(height)
-        else:
-            return 0
+        if self.stageTime >= stage.burnTime:
+            if not self.next_stage():
+                return 0
+        
+        self.mass -= self.currentStage.massFlowRate * dt
+        return self.calculateThrust(height)
             
     @classmethod
     def from_dict(cls, data):
         stages = [Stage.from_dict(s) for s in data["stages"]]
-        return cls(name=data["name"], stages=stages, dragCoefficient=data["dragCoefficient"], frontalArea=data["frontalArea"], VERTICAL_CLIMB_TIME=data["VERTICAL_CLIMB_TIME"], PITCH_KICK_DEGREES=data["PITCH_KICK_DEGREES"], PITCH_KICK_DURATION=data["PITCH_KICK_DURATION"])
+        return cls(name=data["name"], stages=stages, dragCoefficient=data["dragCoefficient"], frontalArea=data["frontalArea"], launchAzimuth=data["launchAzimuth"], VERTICAL_CLIMB_TIME=data["VERTICAL_CLIMB_TIME"], PITCH_KICK_DEGREES=data["PITCH_KICK_DEGREES"], PITCH_KICK_DURATION=data["PITCH_KICK_DURATION"])

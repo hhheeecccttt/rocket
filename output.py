@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 from constants import *
 import math
 
@@ -13,41 +13,74 @@ def output(position, velocity, planet):
     mu = GRAVITATIONAL_CONSTANT * planet.MASS
     specificEnergy = 0.5 * orbitalVelocity ** 2 - mu / orbitalRadius
     angularMomentum = np.cross(positionVector, velocityVector)
+<<<<<<< HEAD
     eccentricity = math.sqrt(1 + (2 * specificEnergy * (angularMomentum ** 2) / (mu ** 2)))
     semiMajorAxis = -mu / (2 * specificEnergy)
     semiMinorAxis = semiMajorAxis * np.sqrt(1 - eccentricity**2)
     periapsis = semiMajorAxis * (1 - eccentricity) - planet.RADIUS
     apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS
+=======
+    nodeVector = np.cross([0, 0, 1], angularMomentum)
+>>>>>>> 3D-Orbitals
 
-    print(f"Semi-major axis: {semiMajorAxis / 1000:.1f} km")
-    print(f"Eccentricity: {eccentricity:.4f}")
-    print(f"Periapsis altitude: {periapsis/1000:.1f} km")
-    print(f"Apoapsis altitude: {apoapsis/1000:.1f} km")
-
-    theta = np.linspace(0, 2 * np.pi, 1000)
-    earth_x = planet.RADIUS * np.cos(theta)
-    earth_y = planet.RADIUS * np.sin(theta)
-
-    x = semiMajorAxis * np.cos(theta) - semiMajorAxis * eccentricity
-    y = semiMinorAxis * np.sin(theta)
-    e_vec = np.array([velocityVector[1] * angularMomentum, -velocityVector[0] * angularMomentum]) / mu - positionVector / orbitalRadius
-    orbitAngle = math.atan2(e_vec[1], e_vec[0])
-    x_rot = x * np.cos(orbitAngle) - y * np.sin(orbitAngle)
-    y_rot = x * np.sin(orbitAngle) + y * np.cos(orbitAngle)
     
-    fig, ax = plt.subplots()
-    ax.plot(earth_x, earth_y)
-    ax.plot(x_rot, y_rot, 'r--', label='Final orbit')
-    ax.set_aspect("equal")
 
-    trail, = ax.plot([], [], 'b-')
-    dot, = ax.plot([], [], 'bo', markersize=5)
+    eccentricity = max(0.0, math.sqrt(abs(1 + (2 * specificEnergy * np.linalg.norm(angularMomentum) ** 2) / mu**2)))
+    eccentricityVector = np.cross(velocityVector, angularMomentum) / mu - positionVector / orbitalRadius
+    semiMajorAxis = -mu / (2 * specificEnergy)
+    inclination = np.degrees(np.arccos(np.clip(angularMomentum[2] / np.linalg.norm(angularMomentum), -1, 1)))
+    if np.linalg.norm(nodeVector) < 1e-6:
+        RAAN = 0.0
+        AOP = 0.0
+    else:
+        RAAN = np.degrees(np.arccos(np.clip(nodeVector[0] / np.linalg.norm(nodeVector), -1, 1)))
+        AOP = np.degrees(np.arccos(np.clip(np.dot(nodeVector, eccentricityVector) / (np.linalg.norm(nodeVector) * eccentricity), -1, 1)))
+    trueAnomaly = np.degrees(np.arccos(np.clip(np.dot(eccentricityVector, positionVector) / (eccentricity * orbitalRadius), -1, 1)))
+    
+    
 
-    def update(frame):
-        trail.set_data(position[:frame, 0], position[:frame, 1])
-        dot.set_data([position[frame, 0]], [position[frame, 1]])
-        return trail, dot
+    print(f"Semi-major axis (a): {semiMajorAxis / 1000:.1f} km")
+    print(f"Eccentricity (e): {eccentricity:.4f}")
+    print(f"Inclination (i): {inclination:.2f}°")
+    print(f"Right Ascension of the Ascending Node (Ω): {RAAN:.2f}°")
+    print(f"Argument of Periapsis (ω): {AOP}°")
+    print(f"True Anomaly (v / θ): {trueAnomaly:.2f}°")
 
-    ani = FuncAnimation(fig, update, frames=range(0, len(position), 10), interval=1, blit=True)
+    if eccentricity < 1.0:
+        periapsis = semiMajorAxis * (1 - eccentricity) - planet.RADIUS
+        apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS
+        print(f"Periapsis altitude: {periapsis/1000:.1f} km")
+        print(f"Apoapsis altitude: {apoapsis/1000:.1f} km")
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d') 
+
+    R = planet.RADIUS * 2
+    ax.set_xlim(-R, R)
+    ax.set_ylim(-R, R)
+    ax.set_zlim(-R, R)
+
+    u, v = np.mgrid[0:2*np.pi:18j, 0:np.pi:9j]
+    ex = planet.RADIUS * np.cos(u) * np.sin(v)
+    ey = planet.RADIUS * np.sin(u) * np.sin(v)
+    ez = planet.RADIUS * np.cos(v)
+    ax.plot_wireframe(ex, ey, ez, color='blue', alpha=0.2, linewidth=0.5)
+
+    ax.plot(position[:, 0], position[:, 1], position[:, 2],
+            'r-', linewidth=1.5, label='Trajectory')
+    ax.plot(*position[0], 'go', markersize=6, label='Launch')
+    ax.plot(*position[-1], 'rs', markersize=6, label='Final position')
+
+    theta = np.linspace(0, 2 * np.pi, 200)
+    ax.plot(planet.RADIUS * np.cos(theta),
+            planet.RADIUS * np.sin(theta),
+            np.zeros(200), 'b--', alpha=0.4, label='Equator')
+
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
+    ax.set_title('Rocket Trajectory (ECI Frame)')
+    ax.legend()
+    ax.set_box_aspect([1, 1, 1])
     plt.tight_layout()
     plt.show()
