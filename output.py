@@ -17,7 +17,7 @@ def output(position, velocity, planet):
     semiMajorAxis = -mu / (2 * specificEnergy)
     semiMinorAxis = semiMajorAxis * np.sqrt(1 - eccentricity**2)
     periapsis = semiMajorAxis * (1 - eccentricity) - planet.RADIUS
-    apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS5
+    apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS
 
     print(f"Semi-major axis: {semiMajorAxis / 1000:.1f} km")
     print(f"Eccentricity: {eccentricity:.4f}")
