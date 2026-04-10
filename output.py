@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from constants import *
 import math
 
-def output(position, velocity, planet):
+def output(position, velocity, planet, bodies):
     positionVector = position[-1]
     velocityVector = velocity[-1]
     orbitalRadius = np.linalg.norm(positionVector)
@@ -13,15 +13,7 @@ def output(position, velocity, planet):
     mu = GRAVITATIONAL_CONSTANT * planet.MASS
     specificEnergy = 0.5 * orbitalVelocity ** 2 - mu / orbitalRadius
     angularMomentum = np.cross(positionVector, velocityVector)
-<<<<<<< HEAD
-    eccentricity = math.sqrt(1 + (2 * specificEnergy * (angularMomentum ** 2) / (mu ** 2)))
-    semiMajorAxis = -mu / (2 * specificEnergy)
-    semiMinorAxis = semiMajorAxis * np.sqrt(1 - eccentricity**2)
-    periapsis = semiMajorAxis * (1 - eccentricity) - planet.RADIUS
-    apoapsis  = semiMajorAxis * (1 + eccentricity) - planet.RADIUS
-=======
     nodeVector = np.cross([0, 0, 1], angularMomentum)
->>>>>>> 3D-Orbitals
 
     
 
@@ -55,16 +47,20 @@ def output(position, velocity, planet):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d') 
 
-    R = planet.RADIUS * 2
+    R = planet.RADIUS * 50
     ax.set_xlim(-R, R)
     ax.set_ylim(-R, R)
     ax.set_zlim(-R, R)
 
-    u, v = np.mgrid[0:2*np.pi:18j, 0:np.pi:9j]
-    ex = planet.RADIUS * np.cos(u) * np.sin(v)
-    ey = planet.RADIUS * np.sin(u) * np.sin(v)
-    ez = planet.RADIUS * np.cos(v)
-    ax.plot_wireframe(ex, ey, ez, color='blue', alpha=0.2, linewidth=0.5)
+    for body in bodies:
+        u, v = np.mgrid[0:2*np.pi:18j, 0:np.pi:9j]
+
+        ex = body.RADIUS * np.cos(u) * np.sin(v)
+        ey = body.RADIUS * np.sin(u) * np.sin(v)
+        ez = body.RADIUS * np.cos(v)
+
+        ax.plot_wireframe(ex + body.position[0], ey + body.position[1], ez + body.position[2], color='blue', alpha=0.2, linewidth=0.5)
+        ax.plot(body.position[0], body.position[1], body.position[2], 'o', markersize=6, label=body.__class__.NAME)
 
     ax.plot(position[:, 0], position[:, 1], position[:, 2],
             'r-', linewidth=1.5, label='Trajectory')
@@ -84,3 +80,5 @@ def output(position, velocity, planet):
     ax.set_box_aspect([1, 1, 1])
     plt.tight_layout()
     plt.show()
+
+    return semiMajorAxis, eccentricity

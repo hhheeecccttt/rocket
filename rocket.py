@@ -49,7 +49,7 @@ class Rocket:
 
     def next_stage(self):
         if self.currentStageIndex + 1 < len(self.stages):
-            print(f"Stage {self.currentStageIndex + 1} sep")
+            print(f"Stage {self.currentStageIndex + 1} seperation")
             self.mass -= self.currentStage.dryMass
             self.currentStageIndex += 1
             self.stageTime = 0
